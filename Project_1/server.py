@@ -24,46 +24,41 @@ def handle_client(conn, addr):
         # Convert it to a readable format
         msg = request.decode(FORMAT)
         print(f"[{addr}] {msg}")
-        # Extract the url from the HTTP message
-        first_line = msg.split('\n')[0]
-        url = first_line.split(' ')[1]
-        # Extract the webserver and port from the url
-        # Found between "://" and first "/"
-        http_pos = url.find("://")
-        # If there is no "://" then the webserver starts at the start of the url
-        if (http_pos==-1):
-            temp = url
-        # If there is a "://" then the webserver starts directly after it
-        else:
-            temp = url[(http_pos+3):]
-        # Find the port position if it exists
-        port_pos = temp.find(":")
-        webserver_pos = temp.find("/")
-        if webserver_pos == -1:
-            webserver_pos = len(temp)
-        webserver = ""
-        port = -1
-        # Default port
-        if (port_pos==-1 or webserver_pos < port_pos): 
-            port = 80 
-            webserver = temp[:webserver_pos]
-        # Specific port
-        else:
-            port = int((temp[(port_pos+1):])[:webserver_pos-port_pos-1])
-            webserver = temp[:port_pos]
+        # Extract the webserver and port from the message
+        webserver, port = get_host(msg)
         # Create outgoing socket and send request
+        print(f"Sending request to {webserver} {port}")
         outgoing = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
         outgoing.connect((webserver, port))
         outgoing.sendall(request)
-        print(f"Sending request to {webserver} {port}")
         while connected:
-            data = outgoing.recv(MAX_DATA_SIZE)
-            if (len(data) > 0):
-                conn.send(data)
+            response = outgoing.recv(MAX_DATA_SIZE)
+            #msg = response.decode(FORMAT)
+            print(f"Received response {response}")
+            if (len(response) > 0):
+                print("Sending response to client")
+                conn.send(response)
             else:
-                connected = false
-                outgoing.close()
+                connected = False
+    outgoing.close()
     conn.close()
+
+def get_host(message):
+    # Default port
+    port = 80
+    first_line = message.split('\n')[0]
+    message_type = first_line.split(' ')[0]
+    if message_type == 'CONNECT':
+        host_line = message.split('\n')[4]
+    else:
+        host_line = message.split('\n')[1]
+    host = host_line.split(' ')[1]
+    port_pos = host.find(":")
+    if (port_pos != -1): 
+    # Specific port
+        port = int(host[(port_pos+1):])
+    webserver = host[:port_pos]
+    return webserver, port
 
 def start():
     incoming.listen()
