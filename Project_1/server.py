@@ -22,13 +22,12 @@ def handle_client(conn, addr):
     outgoing = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
     outgoing.connect((webserver, port))
     # Create outgoing socket and send request
-    print(f"Sending {method} request to {webserver} {port}")
     if(method == "CONNECT"):
         https_connection(conn, outgoing)
     else:
         outgoing.sendall(request)
         http_connection(conn, outgoing)
-    print("Closing connection...")
+    print(f"[CLOSING CONNECTION] {addr} closed.")
     outgoing.close()
     conn.close()
 
@@ -52,7 +51,6 @@ def parse_message(message):
 
 def https_connection(conn, outgoing):
     ok = "HTTP/1.1 200 Connection established\r\nProxy-agent: Proxy\r\n\r\n".encode()
-    print("Initiating connection...")
     conn.sendall(ok)
     conn.setblocking(0)
     outgoing.setblocking(0)
@@ -75,7 +73,6 @@ def https_connection(conn, outgoing):
 def http_connection(conn, outgoing):
     while True:
         response = outgoing.recv(MAX_DATA_SIZE)
-        print(f"Received response {response}")
         if (len(response) > 0):
             conn.send(response)
         else:
@@ -87,10 +84,7 @@ def start():
     incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     incoming.bind(ADDR)
     incoming.listen()
-    print(f"[LISTENING] Server is listening on {SERVER}")
     while True:
-        print(f"Starting thread {threadnumber}")
-        threadnumber = threadnumber + 1
         conn, addr = incoming.accept()
         thread = threading.Thread(target=handle_client, args=(conn, addr))
         thread.start()
