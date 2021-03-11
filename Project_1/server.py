@@ -1,6 +1,7 @@
 # Import libraries
 import socket
 import threading
+import time
 
 # Define constants
 MAX_DATA_SIZE = 8192
@@ -54,18 +55,18 @@ def https_connection(conn, outgoing):
     conn.sendall(ok)
     conn.setblocking(0)
     outgoing.setblocking(0)
-    while True:
+    start_time = time.perf_counter()
+    while (time.perf_counter() - start_time < 2):
         try:
             request = conn.recv(MAX_DATA_SIZE)
+            start_time = time.perf_counter()
             outgoing.sendall(request)
         except socket.error as e:
             pass
         try:
             response = outgoing.recv(MAX_DATA_SIZE)
-            if (len(response) > 0):
-                conn.sendall(response)
-            else:
-                break
+            start_time = time.perf_counter()
+            conn.sendall(response)
         except socket.error as e:
             pass
     return 0
@@ -74,12 +75,12 @@ def http_connection(conn, outgoing):
     while True:
         response = outgoing.recv(MAX_DATA_SIZE)
         if (len(response) > 0):
-            conn.send(response)
+            conn.sendall(response)
         else:
             break
+    return 0
 
 def start():
-    threadnumber = 1
     # Create socket
     incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     incoming.bind(ADDR)
