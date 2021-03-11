@@ -10,6 +10,8 @@ SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
 FORMAT = 'ISO-8859-1'
 
+blocked_urls = []
+
 # Client handler
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
@@ -81,6 +83,14 @@ def http_connection(conn, outgoing):
     return 0
 
 def start():
+    # Ask to block urls
+    url = input("Enter a URL to block, or q to quit:\n")
+    while url != "q":
+        blocked_urls.append(url)
+        url = input("Enter a URL to block, or q to quit:\n")
+    # Print blocked urls
+    print("Blocked URLS:\n")
+    print(*blocked_urls, sep = "\n")
     # Create socket
     incoming = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     incoming.bind(ADDR)
