@@ -21,17 +21,20 @@ def handle_client(conn, addr):
     msg = request.decode(FORMAT)
     print(f"[{addr}] {msg}")
     # Extract the webserver and port from the message
-    method, webserver, port = parse_message(msg)
-    outgoing = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-    outgoing.connect((webserver, port))
-    # Create outgoing socket and send request
-    if(method == "CONNECT"):
-        https_connection(conn, outgoing)
+    method, url, webserver, port = parse_message(msg)
+    if url in blocked_urls:
+        print(f"{url} is blocked")
     else:
-        outgoing.sendall(request)
-        http_connection(conn, outgoing)
-    print(f"[CLOSING CONNECTION] {addr} closed.")
-    outgoing.close()
+        # Create outgoing socket and send request
+        outgoing = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        outgoing.connect((webserver, port))
+        if(method == "CONNECT"):
+            https_connection(conn, outgoing)
+        else:
+            outgoing.sendall(request)
+            http_connection(conn, outgoing)
+        print(f"[CLOSING CONNECTION] {addr} closed.")
+        outgoing.close()
     conn.close()
 
 def parse_message(message):
@@ -39,6 +42,7 @@ def parse_message(message):
     port = 80
     first_line = message.split('\n')[0]
     method = first_line.split(' ')[0]
+    url = first_line.split(' ')[1]
     # Check if CONNECT method
     if method == 'CONNECT':
         host_line = message.split('\n')[4]
@@ -50,7 +54,7 @@ def parse_message(message):
     # Specific port
         port = int(host[(port_pos+1):])
     webserver = host[:port_pos]
-    return method, webserver, port
+    return method, url, webserver, port
 
 def https_connection(conn, outgoing):
     ok = "HTTP/1.1 200 Connection established\r\nProxy-agent: Proxy\r\n\r\n".encode()
