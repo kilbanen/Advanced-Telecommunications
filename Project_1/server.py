@@ -1,4 +1,5 @@
 # Import libraries
+import re
 import socket
 import threading
 import time
@@ -11,9 +12,11 @@ ADDR = (SERVER, PORT)
 FORMAT = 'ISO-8859-1'
 
 blocked_urls = []
+cache = {}
 
 # Client handler
 def handle_client(conn, addr):
+    url_blocked = False
     print(f"[NEW CONNECTION] {addr} connected.")
     # Receive the request
     request = conn.recv(MAX_DATA_SIZE)
@@ -22,7 +25,11 @@ def handle_client(conn, addr):
     print(f"[{addr}] {msg}")
     # Extract the webserver and port from the message
     method, url, webserver, port = parse_message(msg)
-    if url in blocked_urls:
+    for regex in blocked_urls:
+        if re.match(regex, url):
+            url_blocked = True
+            break
+    if url_blocked:
         print(f"{url} is blocked")
     else:
         # Create outgoing socket and send request
@@ -31,8 +38,12 @@ def handle_client(conn, addr):
         if(method == "CONNECT"):
             https_connection(conn, outgoing)
         else:
-            outgoing.sendall(request)
-            http_connection(conn, outgoing)
+            if request in cache:
+                print("Cache hit!")
+                conn.sendall(cache[request])
+            else:
+                outgoing.sendall(request)
+                http_connection(conn, request, outgoing)
         print(f"[CLOSING CONNECTION] {addr} closed.")
         outgoing.close()
     conn.close()
@@ -77,10 +88,11 @@ def https_connection(conn, outgoing):
             pass
     return 0
 
-def http_connection(conn, outgoing):
+def http_connection(conn, request, outgoing):
     while True:
         response = outgoing.recv(MAX_DATA_SIZE)
         if (len(response) > 0):
+            cache[request] = response
             conn.sendall(response)
         else:
             break
@@ -90,7 +102,8 @@ def start():
     # Ask to block urls
     url = input("Enter a URL to block, or q to quit:\n")
     while url != "q":
-        blocked_urls.append(url)
+        regex = re.compile(url + ".*")
+        blocked_urls.append(regex)
         url = input("Enter a URL to block, or q to quit:\n")
     # Print blocked urls
     print("Blocked URLS:\n")
